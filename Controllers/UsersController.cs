@@ -43,11 +43,9 @@ namespace UdemyReservationAppServer.Controllers
 
     // POST: api/register
     [HttpPost("/api/register")]
-    public async Task<ActionResult<User>> PostUser(User user)
+    public async Task<ActionResult<User>> RegistUser(User user)
     {
-      var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == user.Email);
-
-      if (!await Validate(user))
+      if (!await RegistValidate(user))
       {
         return BadRequest(_errorMessages.ToArray());
       }
@@ -60,16 +58,53 @@ namespace UdemyReservationAppServer.Controllers
       return CreatedAtAction("GetUser", new { id = user.Id }, user);
     }
 
-    private async Task<bool> Validate(User user)
+    private async Task<bool> RegistValidate(User user)
     {
-      var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == user.Email);
-
-      if (existingUser != null)
+      var userInfo = await _context.Users.FirstOrDefaultAsync(u => u.Email == user.Email);
+      if (userInfo != null)
       {
         _errorMessages.Add("このEメールはすでに登録されています。");
       }
 
       return _errorMessages.Count == 0;
+    }
+
+    // POST: api/login
+    [HttpPost("/api/login")]
+    public async Task<ActionResult<User>> LoginUser(User user)
+    {
+      if (!await LoginValidate(user))
+      {
+        return BadRequest(_errorMessages.ToArray());
+      }
+
+      var obj = new List<string>() { "ログイン成功！" };
+
+      return Ok(obj);
+    }
+
+    private async Task<bool> LoginValidate(User user)
+    {
+      var userInfo = await _context.Users.FirstOrDefaultAsync(u => u.Email == user.Email);
+      if (userInfo == null)
+      {
+        _errorMessages.Add("ユーザーが見つかりません。");
+        return _errorMessages.Count == 0;
+      }
+
+      if (!VerifyPassword(userInfo, user))
+      {
+        _errorMessages.Add("パスワードが一致しません。");
+      }
+
+      return _errorMessages.Count == 0;
+    }
+
+    private bool VerifyPassword(User userInfo, User user)
+    {
+      var verificationResult = _passwordHasher.VerifyHashedPassword(userInfo, userInfo.Password, user.Password);
+
+      return verificationResult == PasswordVerificationResult.Success;
     }
   }
 }
